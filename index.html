@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>PORTAL RUNNER · 传送门跑酷</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #070a12;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #dbe6f7;
+    -webkit-font-smoothing: antialiased;
+  }
+  #app {
+    display: flex; flex-direction: column;
+    width: 100%; height: 100%;
+  }
+  #topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px;
+    background: linear-gradient(180deg, #101827, #0c111c);
+    border-bottom: 1px solid rgba(120,170,255,.14);
+    flex: 0 0 auto;
+  }
+  #topbar h1 {
+    font-size: 14px; font-weight: 700; letter-spacing: .14em;
+    background: linear-gradient(90deg, #4ee2ff, #b79bff 55%, #ff9f43);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    white-space: nowrap;
+  }
+  #topbar .sep { width: 1px; height: 16px; background: rgba(120,170,255,.22); }
+  #topbar .tag {
+    font-size: 11px; padding: 3px 8px; border-radius: 999px;
+    background: rgba(78,226,255,.10);
+    border: 1px solid rgba(78,226,255,.28);
+    color: #8fdcff; white-space: nowrap;
+  }
+  #topbar .spacer { flex: 1; }
+  #topbar button {
+    font: inherit; font-size: 11.5px; font-weight: 600;
+    padding: 5px 12px; border-radius: 7px; cursor: pointer;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(150,190,255,.22);
+    color: #cfe0f7; transition: .14s;
+  }
+  #topbar button:hover { background: rgba(120,190,255,.16); border-color: rgba(150,200,255,.45); color: #fff; }
+  #topbar button.on { background: rgba(78,226,255,.18); border-color: rgba(78,226,255,.5); color: #a5e9ff; }
+
+  #stage {
+    flex: 1; min-height: 0;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    padding: 10px;
+  }
+  canvas#game {
+    display: block;
+    border-radius: 10px;
+    box-shadow: 0 18px 60px rgba(0,0,0,.65), 0 0 0 1px rgba(130,180,255,.16);
+    background: #0b1020;
+    touch-action: none;
+    cursor: crosshair;
+  }
+
+  #help {
+    flex: 0 0 auto;
+    display: flex; flex-wrap: wrap; gap: 8px 18px;
+    padding: 8px 16px 10px;
+    background: #0c111c;
+    border-top: 1px solid rgba(120,170,255,.12);
+    font-size: 11.5px; color: #8fa3c0;
+  }
+  #help b {
+    display: inline-block; min-width: 20px; text-align: center;
+    padding: 1px 6px; margin-right: 4px;
+    border-radius: 4px;
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(160,200,255,.20);
+    color: #d6e6ff; font-weight: 600;
+  }
+  #help .item { white-space: nowrap; }
+  #help .hi { color: #8fdcff; }
+
+  /* ---------- 键位设置面板 ---------- */
+  #binds {
+    position: fixed; inset: 0;
+    background: rgba(4,7,14,.72);
+    backdrop-filter: blur(3px);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 50;
+  }
+  #binds.show { display: flex; }
+  #binds .panel {
+    width: min(560px, 92vw);
+    max-height: 86vh; overflow: auto;
+    background: linear-gradient(180deg, #131c2e, #0d1421);
+    border: 1px solid rgba(130,180,255,.26);
+    border-radius: 14px;
+    box-shadow: 0 26px 80px rgba(0,0,0,.7);
+    padding: 18px 20px 16px;
+  }
+  #binds h2 {
+    font-size: 14px; font-weight: 700; letter-spacing: .08em;
+    color: #cfe4ff; margin-bottom: 3px;
+  }
+  #binds .sub { font-size: 11.5px; color: #7f94b3; margin-bottom: 14px; }
+  #binds .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 8px; border-radius: 8px;
+  }
+  #binds .row:nth-child(odd) { background: rgba(255,255,255,.026); }
+  #binds .row .name { flex: 1; font-size: 12.5px; color: #cfdff5; }
+  #binds .row .key {
+    min-width: 96px; text-align: center;
+    font-size: 12px; font-weight: 600;
+    padding: 5px 10px; border-radius: 7px; cursor: pointer;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(160,200,255,.24);
+    color: #e4efff; transition: .13s;
+    font-family: ui-monospace, Consolas, monospace;
+  }
+  #binds .row .key:hover { background: rgba(120,190,255,.16); border-color: rgba(150,200,255,.5); }
+  #binds .row .key.listening {
+    background: rgba(255,210,110,.18);
+    border-color: rgba(255,210,110,.75);
+    color: #ffe6a8;
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { opacity: .55; } }
+  #binds .row .key.none { color: #ff9b9b; border-color: rgba(255,140,140,.35); }
+  #binds .foot {
+    display: flex; gap: 8px; justify-content: flex-end;
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid rgba(120,170,255,.13);
+  }
+  #binds .foot button {
+    font: inherit; font-size: 12px; font-weight: 600;
+    padding: 7px 15px; border-radius: 8px; cursor: pointer;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(150,190,255,.22);
+    color: #cfe0f7; transition: .14s;
+  }
+  #binds .foot button:hover { background: rgba(120,190,255,.16); border-color: rgba(150,200,255,.45); color: #fff; }
+  #binds .foot button.primary { background: rgba(78,226,255,.16); border-color: rgba(78,226,255,.5); color: #a5e9ff; }
+
+  /* ---------- 通用弹窗 ---------- */
+  .modal {
+    position: fixed; inset: 0;
+    background: rgba(4,7,14,.76);
+    backdrop-filter: blur(3px);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 50;
+  }
+  .modal.show { display: flex; }
+  .modal .panel {
+    width: min(880px, 94vw);
+    max-height: 88vh; overflow: auto;
+    background: linear-gradient(180deg, #131c2e, #0d1421);
+    border: 1px solid rgba(130,180,255,.26);
+    border-radius: 14px;
+    box-shadow: 0 26px 80px rgba(0,0,0,.7);
+    padding: 18px 20px 16px;
+  }
+  .modal h2 {
+    font-size: 15px; font-weight: 700; letter-spacing: .06em;
+    color: #cfe4ff; margin-bottom: 3px;
+  }
+  .modal .sub { font-size: 11.5px; color: #7f94b3; margin-bottom: 14px; }
+  .modal .foot {
+    display: flex; gap: 8px; justify-content: flex-end;
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid rgba(120,170,255,.13);
+  }
+  .modal .foot button, .modal button.primary {
+    font: inherit; font-size: 12px; font-weight: 600;
+    padding: 7px 15px; border-radius: 8px; cursor: pointer;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(150,190,255,.22);
+    color: #cfe0f7; transition: .14s;
+  }
+  .modal .foot button:hover { background: rgba(120,190,255,.16); border-color: rgba(150,200,255,.45); color: #fff; }
+  .modal .foot button.primary { background: rgba(78,226,255,.16); border-color: rgba(78,226,255,.5); color: #a5e9ff; }
+  .modal .head {
+    display: flex; align-items: baseline; gap: 12px;
+    margin-bottom: 12px;
+  }
+  .modal .head .grow { flex: 1; }
+  .modal .head .prog { font-size: 11.5px; color: #8fdcff; }
+
+  /* ---------- 选关面板 ---------- */
+  #selectGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 9px;
+  }
+  #selectGrid .lvl {
+    font: inherit; text-align: left; cursor: pointer;
+    padding: 9px 11px; border-radius: 10px;
+    background: rgba(255,255,255,.035);
+    border: 1px solid rgba(150,190,255,.18);
+    color: #cfdff5; transition: .14s;
+    position: relative; overflow: hidden;
+  }
+  #selectGrid .lvl:hover { background: rgba(120,190,255,.14); border-color: rgba(150,200,255,.5); transform: translateY(-1px); }
+  #selectGrid .lvl .n {
+    font-size: 11px; font-weight: 700; color: #6fc7ff;
+    letter-spacing: .08em;
+  }
+  #selectGrid .lvl .name { font-size: 12px; margin: 3px 0 5px; color: #dfeaf9; }
+  #selectGrid .lvl .rec { font-size: 10.5px; color: #7f94b3; }
+  #selectGrid .lvl.done { border-color: rgba(255,215,110,.42); background: rgba(255,215,110,.08); }
+  #selectGrid .lvl.done .n { color: #ffd76e; }
+  #selectGrid .lvl.done .rec { color: #d9b96a; }
+  #selectGrid .lvl.locked { opacity: .32; cursor: not-allowed; }
+
+  /* ---------- 编辑器 ---------- */
+  #editorPanel .panel { width: min(1040px, 95vw); }
+  #edBody { display: flex; gap: 16px; align-items: flex-start; }
+  #edLeft { flex: 0 0 auto; width: min(58%, 560px); }
+  #edRight { flex: 1; min-width: 240px; }
+  #edCanvas {
+    width: 100%; display: block;
+    border-radius: 10px;
+    border: 1px solid rgba(130,180,255,.28);
+    background: #0b1020;
+    cursor: crosshair;
+    touch-action: none;
+    image-rendering: pixelated;
+  }
+  #edPalette { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  #edPalette .sw {
+    font: inherit; font-size: 11.5px; font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 7px; cursor: pointer;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(150,190,255,.2);
+    color: #cfe0f7; transition: .13s;
+  }
+  #edPalette .sw i {
+    width: 11px; height: 11px; border-radius: 3px; display: block;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
+  }
+  #edPalette .sw:hover { background: rgba(120,190,255,.14); }
+  #edPalette .sw.on { background: rgba(78,226,255,.2); border-color: rgba(78,226,255,.6); color: #a5e9ff; }
+  #edTools { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  #edTools button {
+    font: inherit; font-size: 11.5px; font-weight: 600;
+    padding: 6px 12px; border-radius: 7px; cursor: pointer;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(150,190,255,.22);
+    color: #cfe0f7; transition: .13s;
+  }
+  #edTools button:hover { background: rgba(120,190,255,.16); border-color: rgba(150,200,255,.45); color: #fff; }
+  #edName {
+    font: inherit; font-size: 12.5px;
+    width: 100%; padding: 7px 10px; margin-bottom: 8px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.045);
+    border: 1px solid rgba(150,190,255,.22);
+    color: #e6f0ff;
+  }
+  #edName:focus { outline: none; border-color: rgba(78,226,255,.6); }
+  #edList .lv {
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 9px; margin-bottom: 6px;
+    border-radius: 8px; cursor: pointer;
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(150,190,255,.14);
+    font-size: 12px; color: #cfdff5;
+  }
+  #edList .lv:hover { background: rgba(120,190,255,.1); }
+  #edList .lv.active { border-color: rgba(78,226,255,.5); background: rgba(78,226,255,.1); }
+  #edList .lv .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #edList .lv .mini {
+    font: inherit; font-size: 10.5px; font-weight: 600;
+    padding: 3px 8px; border-radius: 6px; cursor: pointer;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(150,190,255,.2);
+    color: #cfe0f7;
+  }
+  #edList .lv .mini:hover { background: rgba(78,226,255,.18); border-color: rgba(78,226,255,.5); }
+  #edList .empty { font-size: 11.5px; color: #7f94b3; padding: 8px 2px; }
+  .edHint { font-size: 11px; color: #7f94b3; line-height: 1.65; margin-top: 4px; }
+  .edHint b { color: #a5c8ea; }
+
+  /* ---------- 自定义地图大厅 ---------- */
+  #hallPanel .panel { width: min(1040px, 95vw); }
+  #hallBar {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    margin-bottom: 12px;
+  }
+  #hallBar input, #hallBar select {
+    font: inherit; font-size: 12.5px;
+    padding: 7px 10px; border-radius: 8px;
+    background: rgba(255,255,255,.045);
+    border: 1px solid rgba(150,190,255,.22);
+    color: #e6f0ff;
+  }
+  #hallBar input { flex: 1; min-width: 130px; }
+  #hallBar select { cursor: pointer; }
+  #hallBar input:focus, #hallBar select:focus { outline: none; border-color: rgba(78,226,255,.6); }
+  #hallBar button {
+    font: inherit; font-size: 12px; font-weight: 600;
+    padding: 7px 14px; border-radius: 8px; cursor: pointer;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(150,190,255,.22);
+    color: #cfe0f7; transition: .14s;
+  }
+  #hallBar button:hover { background: rgba(120,190,255,.16); border-color: rgba(150,200,255,.45); color: #fff; }
+  #hallBar button.primary { background: rgba(78,226,255,.16); border-color: rgba(78,226,255,.5); color: #a5e9ff; }
+  #hallGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+    gap: 10px;
+  }
+  #hallGrid .card {
+    border-radius: 11px; overflow: hidden;
+    background: rgba(255,255,255,.035);
+    border: 1px solid rgba(150,190,255,.18);
+    transition: .14s;
+    display: flex; flex-direction: column;
+  }
+  #hallGrid .card:hover { background: rgba(120,190,255,.1); border-color: rgba(150,200,255,.45); }
+  #hallGrid .card.mine { border-color: rgba(255,215,110,.42); }
+  #hallGrid .card canvas {
+    width: 100%; display: block; background: #0b1020;
+    image-rendering: pixelated;
+    border-bottom: 1px solid rgba(150,190,255,.14);
+  }
+  #hallGrid .card .body { padding: 9px 11px 10px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  #hallGrid .card .nm {
+    font-size: 12.5px; color: #e4efff; font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #hallGrid .card .meta { font-size: 10.5px; color: #7f94b3; }
+  #hallGrid .card .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  #hallGrid .card .tags span {
+    font-size: 10px; padding: 2px 7px; border-radius: 999px;
+    background: rgba(78,226,255,.1);
+    border: 1px solid rgba(78,226,255,.26);
+    color: #8fdcff;
+  }
+  #hallGrid .card .acts { display: flex; gap: 6px; margin-top: auto; }
+  #hallGrid .card .acts button {
+    flex: 1;
+    font: inherit; font-size: 11px; font-weight: 600;
+    padding: 5px 8px; border-radius: 7px; cursor: pointer;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(150,190,255,.2);
+    color: #cfe0f7; transition: .13s;
+  }
+  #hallGrid .card .acts button:hover { background: rgba(78,226,255,.18); border-color: rgba(78,226,255,.5); color: #a5e9ff; }
+  #hallGrid .card .acts button.danger:hover { background: rgba(255,120,120,.2); border-color: rgba(255,120,120,.5); color: #ffc2c2; }
+  #hallGrid .empty { grid-column: 1 / -1; font-size: 12px; color: #7f94b3; padding: 26px 4px; text-align: center; }
+  #hallCount { font-size: 11.5px; color: #8fdcff; }
+  #shareBox {
+    display: flex; gap: 7px; align-items: center;
+    margin-top: 12px; padding-top: 12px;
+    border-top: 1px solid rgba(120,170,255,.13);
+  }
+  #shareBox input {
+    flex: 1;
+    font: inherit; font-size: 11.5px;
+    padding: 7px 10px; border-radius: 8px;
+    background: rgba(255,255,255,.045);
+    border: 1px solid rgba(150,190,255,.22);
+    color: #cfe4ff;
+    font-family: ui-monospace, Consolas, monospace;
+    min-width: 0;
+  }
+  #shareBox input:focus { outline: none; border-color: rgba(78,226,255,.6); }
+
+  /* ---------- toast ---------- */
+  #toast {
+    position: fixed; left: 50%; bottom: 84px;
+    transform: translateX(-50%) translateY(12px);
+    padding: 9px 18px; border-radius: 10px;
+    background: rgba(8,14,26,.94);
+    border: 1px solid rgba(120,200,255,.4);
+    color: #dceaff; font-size: 12.5px; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: .22s;
+    z-index: 80; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  #modeTag {
+    font-size: 11px; padding: 3px 9px; border-radius: 999px;
+    background: rgba(255,215,110,.14);
+    border: 1px solid rgba(255,215,110,.42);
+    color: #ffd76e; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <h1>PORTAL RUNNER</h1>
+    <div class="sep"></div>
+    <div class="tag">20 关 · 跑酷 · 传送门 · 机关解谜</div>
+    <div id="modeTag" style="display:none"></div>
+    <div class="spacer"></div>
+    <button id="btnSound" class="on">音效 开</button>
+    <button id="btnSelect">选关 (Tab)</button>
+    <button id="btnHall">地图大厅</button>
+    <button id="btnEditor">关卡编辑器</button>
+    <button id="btnBinds">键位设置</button>
+    <button id="btnReset">重新开始 (R)</button>
+  </div>
+
+  <div id="stage"><canvas id="game"></canvas></div>
+
+  <div id="help">
+    <span class="item"><b>←</b><b>→</b> 左右移动</span>
+    <span class="item"><b>C</b> 跳跃 · 空中再按 = 空跳</span>
+    <span class="item"><b>↓</b> 快速下降</span>
+    <span class="item hi"><b>B</b> 蓝门 · <b>O</b> 橙门</span>
+    <span class="item"><b>P</b> 清空传送门</span>
+    <span class="item"><b>R</b> 回到房间起点</span>
+    <span class="item"><b>Tab</b> 选关 · <b>Esc</b> 暂停</span>
+  </div>
+</div>
+
+<!-- 选关面板 -->
+<div id="selectPanel" class="modal">
+  <div class="panel">
+    <div class="head">
+      <h2>选择关卡</h2>
+      <div class="grow"></div>
+      <div class="prog" id="selectProgress"></div>
+    </div>
+    <div class="sub">点任意一关直接开始。已通关的关卡会显示最佳用时与死亡次数。</div>
+    <div id="selectGrid"></div>
+    <div class="foot">
+      <button data-close>关闭 (Esc)</button>
+    </div>
+  </div>
+</div>
+
+<!-- 关卡编辑器 -->
+<div id="editorPanel" class="modal">
+  <div class="panel">
+    <div class="head">
+      <h2>关卡编辑器</h2>
+      <div class="grow"></div>
+    </div>
+    <div class="sub">左键画、右键擦、双击试玩。关卡保存在本机浏览器里。</div>
+    <div id="edBody">
+      <div id="edLeft">
+        <canvas id="edCanvas"></canvas>
+        <div id="edPalette"></div>
+        <div class="edHint">
+          <b>画墙</b> → 选「墙」拖动画。<b>放机关</b> → 选尖刺／水晶／木箱。
+          <b>出生点 / 终点</b> 各只能有一个（画新的会自动移走旧的）。
+          双击画布 = 立刻试玩。
+        </div>
+      </div>
+      <div id="edRight">
+        <input id="edName" placeholder="关卡名字" value="我的关卡">
+        <div id="edTools">
+          <button id="edNew">新建</button>
+          <button id="edSave">保存</button>
+          <button id="edPlay">试玩</button>
+          <button id="edImport">导入当前关</button>
+          <button id="edFill">铺地板</button>
+          <button id="edShare">分享</button>
+          <button id="edDelete">删除</button>
+        </div>
+        <div class="sub" style="margin:2px 0 8px">我的关卡</div>
+        <div id="edList"></div>
+      </div>
+    </div>
+    <div class="foot">
+      <button data-close>关闭 (Esc)</button>
+      <button id="edPlayFoot" class="primary">试玩</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- 自定义地图大厅 -->
+<div id="hallPanel" class="modal">
+  <div class="panel">
+    <div class="head">
+      <h2>自定义地图大厅</h2>
+      <div class="grow"></div>
+      <div id="hallCount" class="prog"></div>
+    </div>
+    <div class="sub">
+      这里收着所有自定义关卡：你自己做的、以及用分享码导入的。
+      每张卡下面的「分享」会生成一段分享码，别人粘到下面就能玩到。
+    </div>
+    <div id="hallBar">
+      <input id="hallSearch" placeholder="搜索关卡名 / 作者">
+      <select id="hallSort">
+        <option value="new">最新优先</option>
+        <option value="name">按名称</option>
+        <option value="plays">按试玩次数</option>
+      </select>
+      <button id="hallImport">导入分享码</button>
+      <button id="hallNew" class="primary">新建关卡</button>
+    </div>
+    <div id="hallGrid"></div>
+    <div id="shareBox">
+      <input id="shareCode" readonly placeholder="点某张卡的「分享」生成分享码，或把别人的分享码粘到这里…">
+      <button id="shareCopy">复制</button>
+      <button id="shareOpen">导入并试玩</button>
+    </div>
+    <div class="foot">
+      <button data-close>关闭 (Esc)</button>
+    </div>
+  </div>
+</div>
+
+<!-- 键位设置面板 -->
+<div id="binds" class="modal">
+  <div class="panel">
+    <h2>键位设置</h2>
+    <div class="sub">点右侧按键框，然后按下你想绑定的键。设置会自动保存在本机。</div>
+    <div id="bindRows"></div>
+    <div class="foot">
+      <button id="btnBindsReset">恢复默认</button>
+      <button data-close>关闭 (Esc)</button>
+      <button id="btnBindsClose" class="primary">完成</button>
+    </div>
+  </div>
+</div>
+
+<script src="src/config.js"></script>
+<script src="src/util.js"></script>
+<script src="src/input.js"></script>
+<script src="src/actor.js"></script>
+<script src="src/portal.js"></script>
+<script src="src/player.js"></script>
+<script src="src/props.js"></script>
+<script src="src/levels.js"></script>
+<script src="src/fx.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/render.js"></script>
+<script src="src/game.js"></script>
+<script src="src/main.js"></script>
+<script src="src/custom.js"></script>
+<script>
+  const G = () => window.__game;
+
+  /* ---------- 顶部按钮 ---------- */
+  const btnSound = document.getElementById('btnSound');
+  btnSound.addEventListener('click', () => {
+    const on = !window.__game.audio.enabled;
+    window.__game.audio.setEnabled(on);
+    btnSound.classList.toggle('on', on);
+    btnSound.textContent = on ? '音效 开' : '音效 关';
+  });
+  document.getElementById('btnReset').addEventListener('click', () => {
+    window.__game.audio.init();
+    window.__game.resetAll(true);
+    window.__game.deaths = 0;
+    window.__game.time = 0;
+    window.__game.player.reset(window.__game.room.spawn.x, window.__game.room.spawn.y);
+    window.__game.cam.x = window.__game.roomCenterCam().x;
+    window.__game.cam.y = window.__game.roomCenterCam().y;
+  });
+
+  /* ⚠️ 键位设置面板的所有行为都搬到了 src/custom.js（renderBindPanel /
+        closeBindPanel）。原先这里还有一份重复的 renderBinds()，会和
+        custom.js 的 openPanel('binds') 抢同一批按钮，造成
+        「点进编辑地图页后按键改不了」。
+        这里不再重复绑定，避免两个监听器打架。 */
+</script>
+</body>
+</html>
